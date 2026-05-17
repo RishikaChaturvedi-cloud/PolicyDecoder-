@@ -1,7 +1,7 @@
 streamlit==1.36.0
 langchain==0.2.11
-langchain-community
+langchain-community==0.2.11
 langchain-google-genai
-chromadb
+chromadb==0.5.5
 pypdf
 python-dotenv
