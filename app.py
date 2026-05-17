@@ -2,13 +2,18 @@ import streamlit as st
 from dotenv import load_dotenv
 import os
 
-# Load API key from .env or Streamlit Secrets
+# Load API key from .env (Local ke liye) ya Streamlit Secrets (Cloud ke liye)
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
 
-# ---- LangChain Imports (CLOUD SAFE) ----
+# Streamlit Cloud par secrets use hote hain, isliye yeh check lagana zaroori hai
+if "GOOGLE_API_KEY" in st.secrets:
+    api_key = st.secrets["GOOGLE_API_KEY"]
+else:
+    api_key = os.getenv("GOOGLE_API_KEY")
+
+# ---- LangChain Imports (FIXED FOR 0.2+) ----
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter # <-- FIXED: text_splitter ki jagah text_splitters kiya
 from langchain_community.vectorstores import Chroma
 
 from langchain_google_genai import (
@@ -27,6 +32,7 @@ st.write("Ask questions about Indian government schemes")
 
 
 # ---------------- LOAD PDF ----------------
+# Dhyan rahe ki aapki GitHub repository mein 'data' naam ka folder ho aur usme 'pm_kisan.pdf' file honi chahiye
 loader = PyPDFLoader("data/pm_kisan.pdf")
 documents = loader.load()
 
@@ -73,8 +79,8 @@ question = st.text_input("Enter your question")
 if question:
 
     with st.spinner("Thinking..."):
-
-        relevant_docs = retriever.get_relevant_documents(question)
+        # FIXED: get_relevant_documents ab deprecated ho chuka hai, invoke use hota hai
+        relevant_docs = retriever.invoke(question)
 
         prompt = f"""
         You are an AI assistant helping Indian citizens understand government schemes.
@@ -86,14 +92,13 @@ if question:
         Question:
         {question}
         """
-
-        response = chain.run(
-            input_documents=relevant_docs,
-            question=prompt
-        )
+        
+        # FIXED: chain.run ki jagah ab chain.invoke() use hota hai naye LangChain mein
+        response = chain.invoke({"input_documents": relevant_docs, "question": prompt})
 
     st.subheader("Answer")
-    st.write(response)
+    # chain.invoke ka output ek dictionary hota hai jisme answer 'output_text' ke andar hota hai
+    st.write(response["output_text"])
 
     st.subheader("Sources")
 
