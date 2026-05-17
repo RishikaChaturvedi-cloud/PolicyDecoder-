@@ -2,49 +2,36 @@ import streamlit as st
 from dotenv import load_dotenv
 import os
 
-# Load API key from .env (Local ke liye) ya Streamlit Secrets (Cloud ke liye)
+# Load API key
 load_dotenv()
 
-# Streamlit Cloud par secrets use hote hain, isliye yeh check lagana zaroori hai
 if "GOOGLE_API_KEY" in st.secrets:
     api_key = st.secrets["GOOGLE_API_KEY"]
 else:
     api_key = os.getenv("GOOGLE_API_KEY")
 
-# ---- LangChain Imports (FIXED FOR 0.2+) ----
+# ---- LangChain Imports (FULLY UPDATED FOR 2026/0.2+) ----
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter # <-- FIXED: text_splitter ki jagah text_splitters kiya
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 
-from langchain_google_genai import (
-    GoogleGenerativeAIEmbeddings,
-    ChatGoogleGenerativeAI
-)
-
-from langchain.chains.question_answering import load_qa_chain
-
+# Naye chains ke liye sahi imports
+from langchain_core.prompts import ChatPromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain
 
 # ---------------- UI ----------------
 st.set_page_config(page_title="Law & Policy Decoder")
-
 st.title("🇮🇳 Law & Policy Decoder")
 st.write("Ask questions about Indian government schemes")
 
-
 # ---------------- LOAD PDF ----------------
-# Dhyan rahe ki aapki GitHub repository mein 'data' naam ka folder ho aur usme 'pm_kisan.pdf' file honi chahiye
 loader = PyPDFLoader("data/pm_kisan.pdf")
 documents = loader.load()
 
-
 # ---------------- SPLIT TEXT ----------------
-splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200
-)
-
+splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 docs = splitter.split_documents(documents)
-
 
 # ---------------- EMBEDDINGS ----------------
 embeddings = GoogleGenerativeAIEmbeddings(
@@ -52,16 +39,9 @@ embeddings = GoogleGenerativeAIEmbeddings(
     google_api_key=api_key
 )
 
-
 # ---------------- VECTOR DB ----------------
-db = Chroma.from_documents(
-    docs,
-    embeddings,
-    persist_directory="db"
-)
-
+db = Chroma.from_documents(docs, embeddings, persist_directory="db")
 retriever = db.as_retriever(search_kwargs={"k": 3})
-
 
 # ---------------- LLM ----------------
 llm = ChatGoogleGenerativeAI(
@@ -70,38 +50,42 @@ llm = ChatGoogleGenerativeAI(
     google_api_key=api_key
 )
 
-chain = load_qa_chain(llm, chain_type="stuff")
+# ---------------- NEW CHAIN SETUP ----------------
+# Naye LangChain mein prompt aur chain aise banti hai
+prompt = ChatPromptTemplate.from_template("""
+You are an AI assistant helping Indian citizens understand government schemes.
+Answer in simple and clear language.
+Use ONLY the given context to answer the question. If you don't know, just say you don't know.
 
+Context:
+{context}
+
+Question:
+{input}
+""")
+
+# Yeh purane load_qa_chain ka naya aur sahi replacement hai
+question_answer_chain = create_stuff_documents_chain(llm, prompt)
 
 # ---------------- USER INPUT ----------------
 question = st.text_input("Enter your question")
 
 if question:
-
     with st.spinner("Thinking..."):
-        # FIXED: get_relevant_documents ab deprecated ho chuka hai, invoke use hota hai
+        # Relevant documents fetch karein
         relevant_docs = retriever.invoke(question)
-
-        prompt = f"""
-        You are an AI assistant helping Indian citizens understand government schemes.
-
-        Answer in simple and clear language.
-
-        Use ONLY the given documents.
-
-        Question:
-        {question}
-        """
         
-        # FIXED: chain.run ki jagah ab chain.invoke() use hota hai naye LangChain mein
-        response = chain.invoke({"input_documents": relevant_docs, "question": prompt})
+        # Chain ko run karein (Naya tareeqa)
+        response = question_answer_chain.invoke({
+            "context": relevant_docs,
+            "input": question
+        })
 
     st.subheader("Answer")
-    # chain.invoke ka output ek dictionary hota hai jisme answer 'output_text' ke andar hota hai
-    st.write(response["output_text"])
+    # Naye chain ka output seedhe string hota hai
+    st.write(response)
 
     st.subheader("Sources")
-
     for doc in relevant_docs:
         st.write(doc.page_content[:500])
         st.write("------")
