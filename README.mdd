@@ -1,0 +1,29 @@
+# 🇮🇳 Law & Policy Decoder
+
+AI-powered RAG chatbot for Indian government schemes.
+
+## Features
+
+- PDF-based scheme understanding
+- Eligibility question answering
+- Simple-language explanations
+- Source-based reasoning
+- Streamlit UI
+
+## Tech Stack
+
+- Python
+- Streamlit
+- LangChain
+- ChromaDB
+- Gemini API
+
+## Run Locally
+
+### Install dependencies
+
+pip install -r requirements.txt
+
+### Run app
+
+streamlit run app.py
