@@ -2,11 +2,11 @@ import streamlit as st
 from dotenv import load_dotenv
 import os
 
-# Load API key from .env
+# Load API key from .env or Streamlit Secrets
 load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 
-# LangChain imports (correct)
+# ---- LangChain Imports (CLOUD SAFE) ----
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -67,7 +67,7 @@ llm = ChatGoogleGenerativeAI(
 chain = load_qa_chain(llm, chain_type="stuff")
 
 
-# ---------------- INPUT ----------------
+# ---------------- USER INPUT ----------------
 question = st.text_input("Enter your question")
 
 if question:
@@ -77,11 +77,11 @@ if question:
         relevant_docs = retriever.get_relevant_documents(question)
 
         prompt = f"""
-        You are a helpful AI assistant for Indian citizens.
+        You are an AI assistant helping Indian citizens understand government schemes.
 
-        Answer in simple language.
+        Answer in simple and clear language.
 
-        Use only the provided government scheme documents.
+        Use ONLY the given documents.
 
         Question:
         {question}
