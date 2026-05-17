@@ -8,7 +8,7 @@ api_key = os.getenv("GOOGLE_API_KEY")
 
 # LangChain imports (correct)
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 
 from langchain_google_genai import (
