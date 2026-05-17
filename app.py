@@ -1,31 +1,37 @@
 import streamlit as st
 from dotenv import load_dotenv
+import os
 
+# Load API key from .env
+load_dotenv()
+api_key = os.getenv("GOOGLE_API_KEY")
+
+# LangChain imports (correct)
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
 
 from langchain_google_genai import (
     GoogleGenerativeAIEmbeddings,
     ChatGoogleGenerativeAI
 )
 
-from langchain_community.vectorstores import Chroma
 from langchain.chains.question_answering import load_qa_chain
 
-# Load API key
-load_dotenv()
 
-# Streamlit UI
+# ---------------- UI ----------------
 st.set_page_config(page_title="Law & Policy Decoder")
 
 st.title("🇮🇳 Law & Policy Decoder")
 st.write("Ask questions about Indian government schemes")
 
-# Load PDF
+
+# ---------------- LOAD PDF ----------------
 loader = PyPDFLoader("data/pm_kisan.pdf")
 documents = loader.load()
 
-# Split text
+
+# ---------------- SPLIT TEXT ----------------
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
     chunk_overlap=200
@@ -33,12 +39,15 @@ splitter = RecursiveCharacterTextSplitter(
 
 docs = splitter.split_documents(documents)
 
-# Embeddings
+
+# ---------------- EMBEDDINGS ----------------
 embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/embedding-001"
+    model="models/embedding-001",
+    google_api_key=api_key
 )
 
-# Create vector database
+
+# ---------------- VECTOR DB ----------------
 db = Chroma.from_documents(
     docs,
     embeddings,
@@ -47,36 +56,41 @@ db = Chroma.from_documents(
 
 retriever = db.as_retriever(search_kwargs={"k": 3})
 
-# Gemini model
+
+# ---------------- LLM ----------------
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash",
-    temperature=0.3
+    temperature=0.3,
+    google_api_key=api_key
 )
 
 chain = load_qa_chain(llm, chain_type="stuff")
 
-# User question
+
+# ---------------- INPUT ----------------
 question = st.text_input("Enter your question")
 
 if question:
 
-    relevant_docs = retriever.get_relevant_documents(question)
+    with st.spinner("Thinking..."):
 
-    prompt = f"""
-    You are a helpful AI assistant for Indian citizens.
+        relevant_docs = retriever.get_relevant_documents(question)
 
-    Answer in simple language.
+        prompt = f"""
+        You are a helpful AI assistant for Indian citizens.
 
-    Use only the provided government scheme documents.
+        Answer in simple language.
 
-    Question:
-    {question}
-    """
+        Use only the provided government scheme documents.
 
-    response = chain.run(
-        input_documents=relevant_docs,
-        question=prompt
-    )
+        Question:
+        {question}
+        """
+
+        response = chain.run(
+            input_documents=relevant_docs,
+            question=prompt
+        )
 
     st.subheader("Answer")
     st.write(response)
