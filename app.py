@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -39,7 +38,7 @@ embeddings = GoogleGenerativeAIEmbeddings(
     model="models/embedding-001"
 )
 
-# Vector DB
+# Create vector database
 db = Chroma.from_documents(
     docs,
     embeddings,
@@ -48,7 +47,7 @@ db = Chroma.from_documents(
 
 retriever = db.as_retriever(search_kwargs={"k": 3})
 
-# Gemini Model
+# Gemini model
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash",
     temperature=0.3
@@ -56,16 +55,27 @@ llm = ChatGoogleGenerativeAI(
 
 chain = load_qa_chain(llm, chain_type="stuff")
 
-# User input
+# User question
 question = st.text_input("Enter your question")
 
 if question:
 
     relevant_docs = retriever.get_relevant_documents(question)
 
+    prompt = f"""
+    You are a helpful AI assistant for Indian citizens.
+
+    Answer in simple language.
+
+    Use only the provided government scheme documents.
+
+    Question:
+    {question}
+    """
+
     response = chain.run(
         input_documents=relevant_docs,
-        question=question
+        question=prompt
     )
 
     st.subheader("Answer")
